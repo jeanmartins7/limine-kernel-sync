@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = linux-cachyos
+Target = linux-cachyos-headers
+
+[Action]
+Description = Syncing Kernel image for Limine (Stow Managed)...
+When = PostTransaction
+Exec = /usr/local/bin/limine-kernel-sync
+Depends = mkinitcpio

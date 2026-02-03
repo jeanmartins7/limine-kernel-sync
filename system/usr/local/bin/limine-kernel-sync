@@ -1,0 +1,44 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Script: limine-kernel-sync
+# Description: Synchronizes the kernel image from module path to Limine boot path.
+# Managed by: GNU Stow (do not edit directly in /usr/local/bin)
+# -----------------------------------------------------------------------------
+set -euo pipefail
+
+readonly MODULES_PATH="/usr/lib/modules"
+readonly BOOT_PATH="/boot"
+readonly KERNEL_NAME_PATTERN="*-cachyos"
+readonly TARGET_KERNEL_NAME="vmlinuz-linux-cachyos"
+
+log_info() { echo -e "\033[0;34m[INFO]\033[0m $1"; }
+log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $1"; }
+log_error() { echo -e "\033[0;31m[ERROR]\033[0m $1" >&2; }
+
+main() {
+    log_info "Starting Limine Kernel Synchronization..."
+
+    local latest_dir
+    latest_dir=$(ls -d "${MODULES_PATH}/"${KERNEL_NAME_PATTERN} 2>/dev/null | sort -V | tail -n 1)
+
+    if [[ -z "$latest_dir" ]]; then
+        log_error "No kernel directory found matching: ${KERNEL_NAME_PATTERN}"
+        exit 1
+    fi
+
+    local source_file="${latest_dir}/vmlinuz"
+    local target_file="${BOOT_PATH}/${TARGET_KERNEL_NAME}"
+
+    log_info "Deploying kernel from: ${source_file}"
+    cp -f "$source_file" "$target_file"
+
+    log_info "Regenerating Initramfs..."
+    if mkinitcpio -P; then
+        log_success "Synchronization finished. Boot is consistent."
+    else
+        log_error "Failed to generate Initramfs."
+        exit 1
+    fi
+}
+
+main

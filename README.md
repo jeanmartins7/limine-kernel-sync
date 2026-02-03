@@ -94,7 +94,7 @@ To verify that the hook is correctly installed and working, you can force a pack
 If you decide to stop using this or switch bootloaders, simply run:
 
 ```bash
-cd limine-pacman-sync
+cd limine-kernel-sync
 sudo make uninstall
 ```
 

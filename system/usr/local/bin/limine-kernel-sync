@@ -1,42 +1,70 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------
-# Script: limine-kernel-sync
-# Description: Synchronizes the kernel image from module path to Limine boot path.
-# Managed by: GNU Stow (do not edit directly in /usr/local/bin)
+# Script: limine-kernel-sync (v2.0 - LTS Support)
+# Description: Synchronizes MAIN and LTS kernel images to Limine boot path.
+# Managed by: GNU Stow
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
 readonly MODULES_PATH="/usr/lib/modules"
 readonly BOOT_PATH="/boot"
-readonly KERNEL_NAME_PATTERN="*-cachyos"
-readonly TARGET_KERNEL_NAME="vmlinuz-linux-cachyos"
 
 log_info() { echo -e "\033[0;34m[INFO]\033[0m $1"; }
 log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $1"; }
+log_warn() { echo -e "\033[0;33m[WARN]\033[0m $1"; }
 log_error() { echo -e "\033[0;31m[ERROR]\033[0m $1" >&2; }
 
-main() {
-    log_info "Starting Limine Kernel Synchronization..."
-
-    local latest_dir
-    latest_dir=$(ls -d "${MODULES_PATH}/"${KERNEL_NAME_PATTERN} 2>/dev/null | sort -V | tail -n 1)
-
-    if [[ -z "$latest_dir" ]]; then
-        log_error "No kernel directory found matching: ${KERNEL_NAME_PATTERN}"
-        exit 1
+sync_kernel() {
+    local search_filter="$1"
+    local target_name="$2"
+    local exclude_filter=""
+    
+    if [[ "$search_filter" == "cachyos" ]]; then
+        exclude_filter="lts"
     fi
 
-    local source_file="${latest_dir}/vmlinuz"
-    local target_file="${BOOT_PATH}/${TARGET_KERNEL_NAME}"
+    log_info "Searching for kernel variant: [$search_filter]..."
 
-    log_info "Deploying kernel from: ${source_file}"
-    cp -f "$source_file" "$target_file"
-
-    log_info "Regenerating Initramfs..."
-    if mkinitcpio -P; then
-        log_success "Synchronization finished. Boot is consistent."
+    local latest_dir
+    
+    if [[ -n "$exclude_filter" ]]; then
+        latest_dir=$(ls -d "${MODULES_PATH}/"*"${search_filter}"* 2>/dev/null | grep -v "$exclude_filter" | sort -V | tail -n 1)
     else
-        log_error "Failed to generate Initramfs."
+        latest_dir=$(ls -d "${MODULES_PATH}/"*"${search_filter}"* 2>/dev/null | sort -V | tail -n 1)
+    fi
+
+    if [[ -z "$latest_dir" ]]; then
+        log_warn "No kernel found for pattern '$search_filter'. Skipping."
+        return 0
+    fi
+
+    log_info "Found version: $(basename "$latest_dir")"
+
+    local source_file="${latest_dir}/vmlinuz"
+    local target_file="${BOOT_PATH}/${target_name}"
+
+    if [[ -f "$source_file" ]]; then
+        log_info "Deploying to: ${target_file}"
+        cp -f "$source_file" "$target_file"
+        log_success "Kernel [$target_name] updated."
+    else
+        log_error "vmlinuz file missing in ${latest_dir}!"
+        return 1
+    fi
+}
+
+main() {
+    echo "=== Starting Limine Kernel Sync (Multi-Kernel) ==="
+
+    sync_kernel "cachyos" "vmlinuz-linux-cachyos"
+
+    sync_kernel "lts" "vmlinuz-linux-cachyos-lts"
+
+    log_info "Regenerating Initramfs for all detected presets..."
+    if mkinitcpio -P; then
+        log_success "All kernels synchronized and images generated."
+    else
+        log_error "mkinitcpio failed."
         exit 1
     fi
 }

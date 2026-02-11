@@ -4,9 +4,11 @@ Operation = Upgrade
 Type = Package
 Target = linux-cachyos
 Target = linux-cachyos-headers
+Target = linux-cachyos-lts
+Target = linux-cachyos-lts-headers
 
 [Action]
-Description = Syncing Kernel image for Limine (Stow Managed)...
+Description = Syncing Main & LTS Kernels for Limine...
 When = PostTransaction
 Exec = /usr/local/bin/limine-kernel-sync
 Depends = mkinitcpio
